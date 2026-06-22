@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>运动补偿侧信息与残差隐藏诊断记录</title>
+<style>
+:root {
+  --bg:#f5f7fb;
+  --card:#ffffff;
+  --ink:#1f2937;
+  --muted:#6b7280;
+  --line:#e5e7eb;
+  --blue:#2563eb;
+  --red:#dc2626;
+  --green:#16a34a;
+  --amber:#f59e0b;
+  --shadow:0 14px 35px rgba(15,23,42,.08);
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",Arial,sans-serif; }
+.wrapper { max-width:1240px; margin:0 auto; padding:30px 24px 52px; }
+.hero { background:linear-gradient(135deg,#ffffff,#eef4ff); border:1px solid #dbeafe; border-radius:26px; padding:28px 30px; box-shadow:var(--shadow); }
+.eyebrow { color:var(--blue); font-weight:800; letter-spacing:.04em; text-transform:uppercase; font-size:13px; margin:0 0 8px; }
+h1 { margin:0; font-size:34px; line-height:1.18; }
+.subtitle { margin:12px 0 0; color:var(--muted); font-size:16px; line-height:1.7; max-width:1000px; }
+.meta-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:22px; }
+.meta { background:#fff; border:1px solid var(--line); border-radius:18px; padding:14px 16px; }
+.meta .label { color:var(--muted); font-size:12px; }
+.meta .value { font-size:21px; font-weight:850; margin-top:4px; }
+.section { margin-top:26px; background:var(--card); border:1px solid var(--line); border-radius:24px; padding:24px; box-shadow:var(--shadow); }
+.section h2 { margin:0 0 14px; font-size:22px; }
+.note { color:var(--muted); font-size:14px; line-height:1.7; margin:6px 0 18px; }
+.flow { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-top:16px; }
+.flow-item { background:#f8fafc; border:1px solid var(--line); border-radius:16px; padding:14px; min-height:86px; }
+.flow-item b { display:block; margin-bottom:6px; }
+.flow-item span { color:var(--muted); font-size:13px; line-height:1.55; }
+.methods { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+.method-card { border:1px solid var(--line); border-radius:20px; padding:18px; background:#fff; min-height:176px; }
+.method-card.highlight { border:2px solid var(--red); background:linear-gradient(180deg,#fff,#fff7f7); box-shadow:0 12px 28px rgba(220,38,38,.10); }
+.method-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.method-top h3 { margin:0; font-size:18px; }
+.method-top span { white-space:nowrap; font-size:12px; padding:5px 8px; border-radius:999px; background:#f3f4f6; color:#374151; }
+.method-card.highlight .method-top span { background:#fee2e2; color:#991b1b; }
+.method-card p { color:#4b5563; line-height:1.65; font-size:14px; }
+.method-card .type { color:#111827; font-weight:800; margin-bottom:8px; }
+.kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:18px 0; }
+.kpi { border:1px solid var(--line); border-radius:18px; padding:16px; background:#fff; }
+.kpi .k { color:var(--muted); font-size:12px; }
+.kpi .v { font-size:25px; font-weight:850; margin-top:6px; }
+.kpi.block { border:2px solid #fecaca; background:#fff7f7; }
+.kpi.aff { border:2px solid #fde68a; background:#fffbeb; }
+.table-wrap { width:100%; overflow:auto; border:1px solid var(--line); border-radius:18px; background:#fff; }
+table { width:100%; border-collapse:collapse; min-width:980px; background:#fff; }
+th,td { padding:11px 12px; border-bottom:1px solid var(--line); text-align:right; font-size:13px; white-space:nowrap; }
+th:first-child, td:first-child { text-align:left; }
+th { background:#f8fafc; color:#475569; font-weight:800; position:sticky; top:0; z-index:1; }
+tr:last-child td { border-bottom:0; }
+.strong-num { font-weight:850; color:#111827; }
+.emph { font-weight:850; color:#b91c1c; }
+.delta { font-weight:850; }
+.delta.up { color:var(--red); }
+.delta.down { color:var(--green); }
+.delta.neutral { color:#64748b; }
+.legend { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0 18px; }
+.pill { display:inline-flex; align-items:center; gap:7px; padding:7px 10px; border-radius:999px; border:1px solid var(--line); background:#fff; font-size:13px; color:#374151; }
+.dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+.dot.red { background:var(--red); } .dot.green { background:var(--green); } .dot.gray { background:#94a3b8; }
+.chart { width:100%; height:auto; background:#fff; border:1px solid var(--line); border-radius:18px; margin-top:12px; }
+.chart rect { fill:#fff; }
+.grid { stroke:#e5e7eb; stroke-width:1; }
+.grid-v { stroke:#f1f5f9; stroke-width:1; }
+.axis { fill:#64748b; font-size:12px; }
+.axis-title { fill:#334155; font-size:13px; font-weight:800; }
+.footer { color:#64748b; font-size:12px; margin-top:18px; text-align:right; }
+@media (max-width:900px) {
+  .meta-grid,.methods,.kpi-grid,.flow { grid-template-columns:1fr; }
+  h1 { font-size:28px; }
+}
+</style>
+</head>
+<body>
+  <main class="wrapper">
+    <section class="hero">
+      <p class="eyebrow">Motion Compensation Alternatives</p>
+      <h1>运动补偿侧信息与残差隐藏诊断记录</h1>
+      <p class="subtitle">页面记录 DIS 稠密光流、Block Matching MV、Global Affine、Block Affine 在同一残差隐藏框架下的 oracle 结果。编码与解码流程保持不变，仅运动补偿预测与残差计算方式不同。</p>
+      <div class="meta-grid">
+        <div class="meta"><div class="label">数据范围</div><div class="value">wider val 63 groups</div></div>
+        <div class="meta"><div class="label">图像尺寸</div><div class="value">256 × 256</div></div>
+        <div class="meta"><div class="label">重点记录</div><div class="value" style="color:var(--red)">Block MV / Affine</div></div>
+        <div class="meta"><div class="label">颜色规则</div><div class="value"><span style="color:var(--red)">涨</span> / <span style="color:var(--green)">降</span></div></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>统一流程</h2>
+      <p class="note">以下流程用于 DIS、Block Matching MV、Global Affine、Block Affine 等不同运动补偿器。差异只发生在 motion side information 与 prediction 的生成方式。</p>
+      <div class="flow">
+        <div class="flow-item"><b>输入序列</b><span>I1, I2, I3, I4；I1 作为 cover。</span></div>
+        <div class="flow-item"><b>运动补偿预测</b><span>根据 flow / MV / affine 生成 P2, P3, P4。</span></div>
+        <div class="flow-item"><b>残差计算</b><span>R2=I2-P2，R3=I3-P3，R4=I4-P4。</span></div>
+        <div class="flow-item"><b>残差隐藏</b><span>Encoder 输入 cover 与 selected residuals，输出 Stego。</span></div>
+        <div class="flow-item"><b>链式恢复</b><span>Decoder 恢复 residuals，再结合 motion side information 重建后续切片。</span></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>运动补偿方向</h2>
+      <div class="methods">
+        <section class="method-card">
+          <div class="method-top"><h3>DIS Dense Optical Flow</h3><span>已有基线</span></div>
+          <p class="type">稠密像素级运动场</p>
+          <p>相邻切片估计稠密 backward flow；通过 warp 得到补偿预测，再计算残差。</p>
+        </section>
+        <section class="method-card highlight">
+          <div class="method-top"><h3>Block Matching MV</h3><span>本页重点记录</span></div>
+          <p class="type">块级运动向量</p>
+          <p>每个图像块在 source frame 的搜索窗口内匹配目标块，得到 block-wise motion vector；残差由目标图像与 block-warp 预测相减得到。</p>
+        </section>
+        <section class="method-card">
+          <div class="method-top"><h3>Global Affine Registration</h3><span>已完成 sweep</span></div>
+          <p class="type">全局仿射配准</p>
+          <p>每组相邻切片估计一个全局 affine / partial affine 变换矩阵，并用 affine warp 生成预测。</p>
+        </section>
+        <section class="method-card">
+          <div class="method-top"><h3>Block Affine</h3><span>已完成 sweep</span></div>
+          <p class="type">局部块级仿射补偿</p>
+          <p>默认 block_size=64、overlap=16、partial_affine；局部估计 affine，拼接/融合得到预测。</p>
+        </section>
+        <section class="method-card">
+          <div class="method-top"><h3>Deformable Alignment</h3><span>历史消融已记录</span></div>
+          <p class="type">可变形特征对齐</p>
+          <p>使用可学习 offset 对 source feature 或 image feature 进行对齐；此前直接插入 encoder+decoder 和 decoder 侧时结果较弱。</p>
+        </section>
+        <section class="method-card">
+          <div class="method-top"><h3>Learned Temporal Context</h3><span>远期方向</span></div>
+          <p class="type">学习式时序上下文</p>
+          <p>通过 MotionNet 或 temporal context 模块生成预测上下文；是否传输 latent 需要单独定义协议。</p>
+        </section>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Block Matching MV 与 Affine：上限诊断记录</h2>
+      <p class="note">Block MV 来自 block_mv_keep_sweep.csv；Affine 来自 affine_keep_sweep.csv。红色表示相对上一档上涨，绿色表示下降。</p>
+      <div class="kpi-grid">
+        <div class="kpi block"><div class="k">Block MV prediction-only</div><div class="v">32.0319 dB</div></div>
+        <div class="kpi block"><div class="k">Block MV keep=0.40</div><div class="v">53.3776 dB</div></div>
+        <div class="kpi aff"><div class="k">Global Affine prediction-only</div><div class="v">29.9298 dB</div></div>
+        <div class="kpi aff"><div class="k">Block Affine prediction-only</div><div class="v">30.6184 dB</div></div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="k">Block MV runtime</div><div class="v">217.94s</div></div>
+        <div class="kpi"><div class="k">Global Affine runtime</div><div class="v">1.83s</div></div>
+        <div class="kpi"><div class="k">Block Affine runtime</div><div class="v">8.35s</div></div>
+        <div class="kpi"><div class="k">Block Affine fail ratio</div><div class="v">0.3256%</div></div>
+      </div>
+      <svg class="chart" viewBox="0 0 980 360" role="img" aria-label="运动补偿方法 oracle PSNR 对照曲线">
+<rect x="0" y="0" width="980" height="360" rx="18"/>
+<line class="grid" x1="60" y1="285.8" x2="910" y2="285.8"/><text class="axis" x="20" y="289.8">30</text>
+<line class="grid" x1="60" y1="228.9" x2="910" y2="228.9"/><text class="axis" x="20" y="232.9">50</text>
+<line class="grid" x1="60" y1="172.1" x2="910" y2="172.1"/><text class="axis" x="20" y="176.1">70</text>
+<line class="grid" x1="60" y1="115.3" x2="910" y2="115.3"/><text class="axis" x="20" y="119.3">90</text>
+<line class="grid" x1="60" y1="58.4" x2="910" y2="58.4"/><text class="axis" x="20" y="62.4">110</text>
+<line class="grid" x1="60" y1="30.0" x2="910" y2="30.0"/><text class="axis" x="20" y="34.0">120</text>
+<line class="grid-v" x1="60.0" y1="30" x2="60.0" y2="300"/><text class="axis" x="48.0" y="328">0.0</text>
+<line class="grid-v" x1="181.4" y1="30" x2="181.4" y2="300"/><text class="axis" x="169.4" y="328">0.1</text>
+<line class="grid-v" x1="302.9" y1="30" x2="302.9" y2="300"/><text class="axis" x="290.9" y="328">0.2</text>
+<line class="grid-v" x1="424.3" y1="30" x2="424.3" y2="300"/><text class="axis" x="412.3" y="328">0.3</text>
+<line class="grid-v" x1="545.7" y1="30" x2="545.7" y2="300"/><text class="axis" x="533.7" y="328">0.4</text>
+<line class="grid-v" x1="667.1" y1="30" x2="667.1" y2="300"/><text class="axis" x="655.1" y="328">0.5</text>
+<line class="grid-v" x1="788.6" y1="30" x2="788.6" y2="300"/><text class="axis" x="776.6" y="328">0.6</text>
+<line class="grid-v" x1="910.0" y1="30" x2="910.0" y2="300"/><text class="axis" x="898.0" y="328">0.7</text>
+<path d="M60.0,279.0 L120.7,259.4 L181.4,250.9 L302.9,238.1 L424.3,226.9 L545.7,215.7 L667.1,203.1 L910.0,137.1" stroke="#2563eb" stroke-width="3" fill="none"/>
+<circle cx="60.0" cy="279.0" r="3.8" fill="#fff" stroke="#2563eb" stroke-width="2"><title>DIS keep=0.00, PSNR=32.3999</title></circle>
+<circle cx="120.7" cy="259.4" r="3.8" fill="#fff" stroke="#2563eb" stroke-width="2"><title>DIS keep=0.05, PSNR=39.2700</title></circle>
+<circle cx="181.4" cy="250.9" r="3.8" fill="#fff" stroke="#2563eb" stroke-width="2"><title>DIS keep=0.10, PSNR=42.2800</title></circle>
+<circle cx="302.9" cy="238.1" r="3.8" fill="#fff" stroke="#2563eb" stroke-width="2"><title>DIS keep=0.20, PSNR=46.7900</title></circle>
+<circle cx="424.3" cy="226.9" r="3.8" fill="#fff" stroke="#2563eb" stroke-width="2"><title>DIS keep=0.30, PSNR=50.7100</title></circle>
+<circle cx="545.7" cy="215.7" r="3.8" fill="#fff" stroke="#2563eb" stroke-width="2"><title>DIS keep=0.40, PSNR=54.6600</title></circle>
+<circle cx="667.1" cy="203.1" r="3.8" fill="#fff" stroke="#2563eb" stroke-width="2"><title>DIS keep=0.50, PSNR=59.1000</title></circle>
+<circle cx="910.0" cy="137.1" r="3.8" fill="#fff" stroke="#2563eb" stroke-width="2"><title>DIS keep=0.70, PSNR=82.3200</title></circle>
+<path d="M60.0,280.0 L120.7,259.4 L181.4,251.6 L242.1,245.5 L302.9,240.1 L363.6,234.9 L424.3,230.0 L485.0,224.6 L545.7,219.3 L606.4,213.8 L667.1,208.7 L727.9,201.8 L788.6,161.3 L849.3,68.4 L910.0,30.0" stroke="#dc2626" stroke-width="3" fill="none"/>
+<circle cx="60.0" cy="280.0" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.00, PSNR=32.0319</title></circle>
+<circle cx="120.7" cy="259.4" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.05, PSNR=39.3021</title></circle>
+<circle cx="181.4" cy="251.6" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.10, PSNR=42.0349</title></circle>
+<circle cx="242.1" cy="245.5" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.15, PSNR=44.1843</title></circle>
+<circle cx="302.9" cy="240.1" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.20, PSNR=46.0793</title></circle>
+<circle cx="363.6" cy="234.9" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.25, PSNR=47.9071</title></circle>
+<circle cx="424.3" cy="230.0" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.30, PSNR=49.6425</title></circle>
+<circle cx="485.0" cy="224.6" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.35, PSNR=51.5200</title></circle>
+<circle cx="545.7" cy="219.3" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.40, PSNR=53.3776</title></circle>
+<circle cx="606.4" cy="213.8" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.45, PSNR=55.3383</title></circle>
+<circle cx="667.1" cy="208.7" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.50, PSNR=57.1185</title></circle>
+<circle cx="727.9" cy="201.8" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.55, PSNR=59.5456</title></circle>
+<circle cx="788.6" cy="161.3" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.60, PSNR=73.8180</title></circle>
+<circle cx="849.3" cy="68.4" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.65, PSNR=106.5042</title></circle>
+<circle cx="910.0" cy="30.0" r="3.8" fill="#fff" stroke="#dc2626" stroke-width="2"><title>Block MV keep=0.70, PSNR=120.0000</title></circle>
+<path d="M60.0,286.0 L120.7,264.1 L181.4,255.3 L302.9,242.5 L424.3,231.3 L545.7,220.1 L667.1,207.6 L788.6,189.3 L910.0,150.1" stroke="#64748b" stroke-width="3" fill="none"/>
+<circle cx="60.0" cy="286.0" r="3.8" fill="#fff" stroke="#64748b" stroke-width="2"><title>Global Affine keep=0.00, PSNR=29.9298</title></circle>
+<circle cx="120.7" cy="264.1" r="3.8" fill="#fff" stroke="#64748b" stroke-width="2"><title>Global Affine keep=0.05, PSNR=37.6224</title></circle>
+<circle cx="181.4" cy="255.3" r="3.8" fill="#fff" stroke="#64748b" stroke-width="2"><title>Global Affine keep=0.10, PSNR=40.7193</title></circle>
+<circle cx="302.9" cy="242.5" r="3.8" fill="#fff" stroke="#64748b" stroke-width="2"><title>Global Affine keep=0.20, PSNR=45.2475</title></circle>
+<circle cx="424.3" cy="231.3" r="3.8" fill="#fff" stroke="#64748b" stroke-width="2"><title>Global Affine keep=0.30, PSNR=49.1638</title></circle>
+<circle cx="545.7" cy="220.1" r="3.8" fill="#fff" stroke="#64748b" stroke-width="2"><title>Global Affine keep=0.40, PSNR=53.1153</title></circle>
+<circle cx="667.1" cy="207.6" r="3.8" fill="#fff" stroke="#64748b" stroke-width="2"><title>Global Affine keep=0.50, PSNR=57.5091</title></circle>
+<circle cx="788.6" cy="189.3" r="3.8" fill="#fff" stroke="#64748b" stroke-width="2"><title>Global Affine keep=0.60, PSNR=63.9571</title></circle>
+<circle cx="910.0" cy="150.1" r="3.8" fill="#fff" stroke="#64748b" stroke-width="2"><title>Global Affine keep=0.70, PSNR=77.7315</title></circle>
+<path d="M60.0,284.0 L120.7,263.1 L181.4,254.4 L302.9,241.8 L424.3,230.9 L545.7,219.8 L667.1,207.4 L788.6,188.9 L910.0,149.5" stroke="#f59e0b" stroke-width="3" fill="none"/>
+<circle cx="60.0" cy="284.0" r="3.8" fill="#fff" stroke="#f59e0b" stroke-width="2"><title>Block Affine keep=0.00, PSNR=30.6184</title></circle>
+<circle cx="120.7" cy="263.1" r="3.8" fill="#fff" stroke="#f59e0b" stroke-width="2"><title>Block Affine keep=0.05, PSNR=37.9970</title></circle>
+<circle cx="181.4" cy="254.4" r="3.8" fill="#fff" stroke="#f59e0b" stroke-width="2"><title>Block Affine keep=0.10, PSNR=41.0310</title></circle>
+<circle cx="302.9" cy="241.8" r="3.8" fill="#fff" stroke="#f59e0b" stroke-width="2"><title>Block Affine keep=0.20, PSNR=45.4634</title></circle>
+<circle cx="424.3" cy="230.9" r="3.8" fill="#fff" stroke="#f59e0b" stroke-width="2"><title>Block Affine keep=0.30, PSNR=49.3053</title></circle>
+<circle cx="545.7" cy="219.8" r="3.8" fill="#fff" stroke="#f59e0b" stroke-width="2"><title>Block Affine keep=0.40, PSNR=53.2156</title></circle>
+<circle cx="667.1" cy="207.4" r="3.8" fill="#fff" stroke="#f59e0b" stroke-width="2"><title>Block Affine keep=0.50, PSNR=57.5824</title></circle>
+<circle cx="788.6" cy="188.9" r="3.8" fill="#fff" stroke="#f59e0b" stroke-width="2"><title>Block Affine keep=0.60, PSNR=64.1015</title></circle>
+<circle cx="910.0" cy="149.5" r="3.8" fill="#fff" stroke="#f59e0b" stroke-width="2"><title>Block Affine keep=0.70, PSNR=77.9444</title></circle>
+<line x1="630" y1="28" x2="652" y2="28" stroke="#2563eb" stroke-width="3"/><text class="axis" x="660" y="32">DIS</text>
+<line x1="630" y1="50" x2="652" y2="50" stroke="#dc2626" stroke-width="3"/><text class="axis" x="660" y="54">Block MV</text>
+<line x1="630" y1="72" x2="652" y2="72" stroke="#64748b" stroke-width="3"/><text class="axis" x="660" y="76">Global Affine</text>
+<line x1="630" y1="94" x2="652" y2="94" stroke="#f59e0b" stroke-width="3"/><text class="axis" x="660" y="98">Block Affine</text>
+<text class="axis-title" x="410" y="350">keep ratio</text>
+<text class="axis-title" transform="translate(18,230) rotate(-90)">oracle PSNR / dB</text>
+</svg>
+    </section>
+
+    <section class="section">
+      <h2>已有 DIS 记录与运动补偿方法对照</h2>
+      <p class="note">DIS 数值为项目已有 oracle 诊断记录；Block MV 和 Affine 数值为本次 sweep。差值列均以 DIS 为基准：高于 DIS 显示红色，低于 DIS 显示绿色。 “—” 表示当前没有该档位的 DIS 或 Affine 记录。</p>
+      <div class="legend">
+        <span class="pill"><span class="dot red"></span> 高于 DIS</span>
+        <span class="pill"><span class="dot green"></span> 低于 DIS</span>
+        <span class="pill"><span class="dot gray"></span> 无对应记录</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>keep ratio</th>
+              <th>DIS oracle</th>
+              <th>Block MV oracle</th>
+              <th>Block MV - DIS</th>
+              <th>Global Affine oracle</th>
+              <th>Global Affine - DIS</th>
+              <th>Block Affine oracle</th>
+              <th>Block Affine - DIS</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+      <tr>
+        <td>0.00</td>
+        <td>32.3999</td>
+        <td class="emph">32.0319</td>
+        <td><span class="delta down">-0.37</span></td>
+        <td>29.9298</td>
+        <td><span class="delta down">-2.47</span></td>
+        <td>30.6184</td>
+        <td><span class="delta down">-1.78</span></td>
+      </tr>
+
+      <tr>
+        <td>0.05</td>
+        <td>39.2700</td>
+        <td class="emph">39.3021</td>
+        <td><span class="delta up">+0.03</span></td>
+        <td>37.6224</td>
+        <td><span class="delta down">-1.65</span></td>
+        <td>37.9970</td>
+        <td><span class="delta down">-1.27</span></td>
+      </tr>
+
+      <tr>
+        <td>0.10</td>
+        <td>42.2800</td>
+        <td class="emph">42.0349</td>
+        <td><span class="delta down">-0.25</span></td>
+        <td>40.7193</td>
+        <td><span class="delta down">-1.56</span></td>
+        <td>41.0310</td>
+        <td><span class="delta down">-1.25</span></td>
+      </tr>
+
+
+
+      <tr>
+        <td>0.20</td>
+        <td>46.7900</td>
+        <td class="emph">46.0793</td>
+        <td><span class="delta down">-0.71</span></td>
+        <td>45.2475</td>
+        <td><span class="delta down">-1.54</span></td>
+        <td>45.4634</td>
+        <td><span class="delta down">-1.33</span></td>
+      </tr>
+
+
+
+      <tr>
+        <td>0.30</td>
+        <td>50.7100</td>
+        <td class="emph">49.6425</td>
+        <td><span class="delta down">-1.07</span></td>
+        <td>49.1638</td>
+        <td><span class="delta down">-1.55</span></td>
+        <td>49.3053</td>
+        <td><span class="delta down">-1.40</span></td>
+      </tr>
+
+      <tr>
+        <td>0.40</td>
+        <td>54.6600</td>
+        <td class="emph">53.3776</td>
+        <td><span class="delta down">-1.28</span></td>
+        <td>53.1153</td>
+        <td><span class="delta down">-1.54</span></td>
+        <td>53.2156</td>
+        <td><span class="delta down">-1.44</span></td>
+      </tr>
+
+
+      <tr>
+        <td>0.50</td>
+        <td>59.1000</td>
+        <td class="emph">57.1185</td>
+        <td><span class="delta down">-1.98</span></td>
+        <td>57.5091</td>
+        <td><span class="delta down">-1.59</span></td>
+        <td>57.5824</td>
+        <td><span class="delta down">-1.52</span></td>
+      </tr>
+
+      
+
+      <tr>
+        <td>0.70</td>
+        <td>82.3200</td>
+        <td class="emph">120.0000</td>
+        <td><span class="delta up">+37.68</span></td>
+        <td>77.7315</td>
+        <td><span class="delta down">-4.59</span></td>
+        <td>77.9444</td>
+        <td><span class="delta down">-4.38</span></td>
+      </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+
+
+    <div class="footer">Generated for StegFormer FlowAux / Motion Compensation residual hiding records.</div>
+  </main>
+</body>
+</html>
